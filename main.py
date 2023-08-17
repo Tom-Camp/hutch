@@ -16,6 +16,7 @@ def pwm_prog():
 
 
 class PIOPWM:
+
     def __init__(self, sm_id, pin, max_count, count_freq):
         self._sm = StateMachine(sm_id, pwm_prog, freq=2 * count_freq, sideset_base=Pin(pin))
         # Use exec() to load max count into ISR
@@ -32,36 +33,41 @@ class PIOPWM:
         self._sm.put(value)
 
 
-def light_on():
-    for i in range(256):
-        pwm.set(i ** 2)
-        time.sleep(0.01)
-    light_status = True
+class Lighting:
 
+    def __init__(self):
+        self.light_status: bool = False
+        self.timeout: bool = False
+        self.pwm = PIOPWM(0, 15, max_count=(1 << 16) - 1, count_freq=10_000_000)
+        self.light_timer = Timer()
 
-def light_off(timer: Timer):
-    print("off")
-    timeout = True
-    pwm.set(-1)
-    light_status = False
+    def light_on(self):
+        for i in range(256):
+            self.pwm.set(i ** 2)
+            time.sleep(0.01)
+        self.light_status = True
+        self.light_timer.init(mode=Timer.ONE_SHOT, period=10000, callback=light.light_off)
 
+    def light_off(self, timer: Timer):
+        print("off")
+        self.timeout = True
+        self.pwm.set(-1)
+        self.light_status = False
 
-pwm = PIOPWM(0, 15, max_count=(1 << 16) - 1, count_freq=10_000_000)
+    def set_timeout(self, value: bool):
+        self.timeout = value
 
-light_status: bool = False
-timeout: bool = False
-light_on_timer = Timer()
 
 door = Pin(16, mode=Pin.IN, pull=Pin.PULL_UP)
+light = Lighting()
 while True:
-    if door.value() > 0 and not timeout:
+    if door.value() > 0 and not light.timeout:
         print("Open")
-        light_on()
-        light_on_timer.init(mode=Timer.ONE_SHOT, period=10000, callback=light_off)
-        print(light_status)
-        print(timeout)
+        light.light_on()
+        print(light.light_status)
+        print(light.timeout)
     else:
-        light_on_timer.deinit()
-        timeout = False
-        pwm.set(-1)
+        light.light_timer.deinit()
+        light.set_timeout(False)
+        light.pwm.set(-1)
     time.sleep(1)
