@@ -45,27 +45,27 @@ class Lighting:
         for i in range(256):
             self.pwm.set(i ** 2)
             time.sleep(0.01)
-        self.light_status = True
+        self.set_status(True)
         self.light_timer.init(mode=Timer.ONE_SHOT, period=10000, callback=light.light_off)
 
     def light_off(self, timer: Timer):
         print("off")
-        self.timeout = True
+        self.set_timeout(True)
         self.pwm.set(-1)
-        self.light_status = False
+        self.set_status(False)
 
     def set_timeout(self, value: bool):
         self.timeout = value
+
+    def set_status(self, value: bool):
+        self.light_status = value
 
 
 door = Pin(16, mode=Pin.IN, pull=Pin.PULL_UP)
 light = Lighting()
 while True:
-    if door.value() > 0 and not light.timeout:
-        print("Open")
+    if door.value() > 0 and not light.timeout and not light.light_status:
         light.light_on()
-        print(light.light_status)
-        print(light.timeout)
     else:
         light.light_timer.deinit()
         light.set_timeout(False)
