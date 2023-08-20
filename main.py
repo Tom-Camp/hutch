@@ -3,6 +3,8 @@ import time
 from machine import Pin, Timer
 from rp2 import PIO, StateMachine, asm_pio
 
+TIMER_DURATION = 60000
+
 
 @asm_pio(sideset_init=PIO.OUT_LOW)
 def pwm_prog():
@@ -39,7 +41,7 @@ class Lighting:
     def __init__(self):
         self.status: bool = False
         self.timeout: bool = False
-        self.pwm = PIOPWM(0, 15, max_count=(1 << 16) - 1, count_freq=10_000_000)
+        self.pwm = PIOPWM(0, 6, max_count=(1 << 16) - 1, count_freq=10_000_000)
 
     def light_on(self):
         for i in range(256):
@@ -69,7 +71,7 @@ class Lighting:
         self.status = value
 
 
-door = Pin(16, mode=Pin.IN, pull=Pin.PULL_UP)
+door = Pin(2, mode=Pin.IN, pull=Pin.PULL_UP)
 light = Lighting()
 lit = Timer()
 while True:
@@ -77,7 +79,9 @@ while True:
         if not light.timeout:
             print("Door opened. Turning light on")
             light.light_on()
-            lit.init(mode=Timer.ONE_SHOT, period=20000, callback=light.light_timeout)
+            lit.init(
+                mode=Timer.ONE_SHOT, period=TIMER_DURATION, callback=light.light_timeout
+            )
             print(lit)
     elif door.value() == 0:
         light.set_timeout(False)
